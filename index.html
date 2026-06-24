@@ -26,7 +26,7 @@
 
   html, body {
     width: 100%; height: 100%;
-    background: #000;
+    background: #000000;
     color: var(--text);
     font-family: 'Orbitron', monospace;
     overflow: hidden;
@@ -36,7 +36,7 @@
   /* ─── SPLASH ─── */
   #splash {
     position: fixed; inset: 0; z-index: 9999;
-    background: #000;
+    background: #000000;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: 32px;
@@ -81,7 +81,7 @@
   @keyframes blink { 50%{opacity:0} }
 
   /* ─── MAP ─── */
-  #map { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #map { position: absolute; inset: 0; width: 100%; height: 100%; background: #000000; }
 
   /* ─── SEARCH UI ─── */
   #search-ui {
@@ -100,7 +100,7 @@
 
   .search-box {
     display: flex; align-items: center; gap: 10px;
-    background: rgba(0,0,0,0.92);
+    background: rgba(0,0,0,0.95);
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0 14px;
@@ -126,7 +126,7 @@
   #search-input::placeholder { color: rgba(255,255,255,0.3); }
 
   #suggestions {
-    background: rgba(0,0,0,0.96);
+    background: rgba(0,0,0,0.98);
     border: 1px solid var(--border);
     border-top: none;
     border-radius: 0 0 4px 4px;
@@ -158,7 +158,7 @@
     z-index: 200;
     display: none;
     padding: 12px 32px;
-    background: transparent;
+    background: #000000;
     border: 1px solid var(--neon);
     border-radius: 3px;
     color: var(--neon);
@@ -168,7 +168,7 @@
     letter-spacing: 0.2em;
     text-transform: uppercase;
     cursor: pointer;
-    box-shadow: var(--neon-glow), inset 0 0 20px rgba(0,229,255,0.05);
+    box-shadow: var(--neon-glow);
     transition: all 0.2s;
   }
   #start-btn:active { background: rgba(0,229,255,0.15); }
@@ -180,7 +180,7 @@
     z-index: 200;
     display: none;
     padding: 10px 18px;
-    background: rgba(0,0,0,0.9);
+    background: #000000;
     border: 1px solid rgba(255,50,50,0.6);
     border-radius: 3px;
     color: rgba(255,80,80,1);
@@ -213,7 +213,7 @@
     width: 48px; height: 48px;
     border: 1px solid rgba(0,229,255,0.3);
     border-radius: 50%;
-    background: rgba(0,0,0,0.7);
+    background: #000000;
     display: flex; align-items: center; justify-content: center;
     position: relative;
     box-shadow: 0 0 12px rgba(0,229,255,0.2);
@@ -241,7 +241,7 @@
     z-index: 200;
     display: none;
     padding: 10px 14px;
-    background: rgba(0,0,0,0.9);
+    background: #000000;
     border: 1px solid var(--border);
     border-radius: 3px;
     color: var(--neon);
@@ -260,7 +260,7 @@
     position: fixed;
     bottom: 0; left: 0; right: 0;
     z-index: 100;
-    background: rgba(0,0,0,0.93);
+    background: #000000;
     border-top: 1px solid rgba(0,229,255,0.25);
     padding: 12px 16px 20px;
     display: grid;
@@ -339,8 +339,8 @@
       0deg,
       transparent,
       transparent 2px,
-      rgba(0,0,0,0.03) 2px,
-      rgba(0,0,0,0.03) 4px
+      rgba(0,0,0,0.02) 2px,
+      rgba(0,0,0,0.02) 4px
     );
   }
 
@@ -348,7 +348,7 @@
   #toast {
     position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
     z-index: 500;
-    background: rgba(0,0,0,0.95);
+    background: #000000;
     border: 1px solid rgba(255,80,80,0.5);
     border-radius: 3px;
     padding: 10px 20px;
@@ -383,7 +383,6 @@
     background: var(--neon);
     box-shadow: var(--neon-glow);
   }
-  #hud { position: fixed; }
 </style>
 </head>
 <body>
@@ -425,7 +424,7 @@
 
 <button id="start-btn">▶ START NAVIGATION</button>
 
-<div id="hud" style="position:fixed;">
+<div id="hud">
   <div class="hud-street">
     <div class="hud-street-icon">⬡</div>
     <div id="hud-street-name">AWAITING GPS SIGNAL...</div>
@@ -453,7 +452,6 @@
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// REPLACE THIS WITH YOUR MAPBOX ACCESS TOKEN
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiemFtcGFycmE3NiIsImEiOiJjbXFydTcxd3IwMWRjMnNzOTU1b2ZseXJ4In0.WtUhqD_3eCe2csSDe16asA';
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -505,12 +503,11 @@ function bearing(from, to) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
-// ─── PLUS CODE PARSER ────────────────────────────────────────────────────────
 function isPlusCode(str) {
   return /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}(\s+.+)?$/i.test(str.trim());
 }
 
-// ─── SPLASH ──────────────────────────────────────────────────────────────────
+// ─── SPLASH ───
 setTimeout(() => {
   const splash = document.getElementById('splash');
   splash.classList.add('hidden');
@@ -541,36 +538,14 @@ function initApp() {
         {
           id: 'background',
           type: 'background',
-          paint: { 'background-color': '#000000' }
+          paint: { 'background-color': '#000000' } // STRICT PURE AMOLED BLACK
         },
         {
           id: 'water',
           type: 'fill',
           source: 'mapbox-streets',
           'source-layer': 'water',
-          paint: { 'fill-color': '#0a0a0f' }
-        },
-        {
-          id: 'landuse',
-          type: 'fill',
-          source: 'mapbox-streets',
-          'source-layer': 'landuse',
-          paint: { 'fill-color': '#050508' }
-        },
-        {
-          id: 'parks',
-          type: 'fill',
-          source: 'mapbox-streets',
-          'source-layer': 'landuse',
-          filter: ['in','class','park','pitch','grass','cemetery','garden','wood','scrub','forest'],
-          paint: { 'fill-color': '#050f06' }
-        },
-        {
-          id: 'buildings',
-          type: 'fill',
-          source: 'mapbox-streets',
-          'source-layer': 'building',
-          paint: { 'fill-color': '#0c0c14', 'fill-outline-color': '#111120' }
+          paint: { 'fill-color': '#000000' }
         },
         {
           id: 'roads-minor',
@@ -578,7 +553,7 @@ function initApp() {
           source: 'mapbox-streets',
           'source-layer': 'road',
           filter: ['in','class','street','street_limited','service','track','path'],
-          paint: { 'line-color': '#282838', 'line-width': ['interpolate',['linear'],['zoom'],12,0.5,18,2] }
+          paint: { 'line-color': '#2c2c2c', 'line-width': ['interpolate',['linear'],['zoom'],12,0.6,18,2.2] }
         },
         {
           id: 'roads-secondary',
@@ -586,7 +561,7 @@ function initApp() {
           source: 'mapbox-streets',
           'source-layer': 'road',
           filter: ['in','class','secondary','tertiary','primary_link','secondary_link','tertiary_link'],
-          paint: { 'line-color': '#3a3a52', 'line-width': ['interpolate',['linear'],['zoom'],10,1,18,5] }
+          paint: { 'line-color': '#555555', 'line-width': ['interpolate',['linear'],['zoom'],10,1.2,18,5.5] }
         },
         {
           id: 'roads-primary',
@@ -594,7 +569,7 @@ function initApp() {
           source: 'mapbox-streets',
           'source-layer': 'road',
           filter: ['in','class','primary','trunk','trunk_link'],
-          paint: { 'line-color': '#555575', 'line-width': ['interpolate',['linear'],['zoom'],8,1,18,8] }
+          paint: { 'line-color': '#888888', 'line-width': ['interpolate',['linear'],['zoom'],8,1.5,18,8] }
         },
         {
           id: 'roads-motorway',
@@ -602,46 +577,12 @@ function initApp() {
           source: 'mapbox-streets',
           'source-layer': 'road',
           filter: ['in','class','motorway','motorway_link'],
-          paint: { 'line-color': '#ffffff', 'line-width': ['interpolate',['linear'],['zoom'],6,1,18,10] }
-        },
-        {
-          id: 'roads-motorway-glow',
-          type: 'line',
-          source: 'mapbox-streets',
-          'source-layer': 'road',
-          filter: ['in','class','motorway','motorway_link'],
-          paint: { 'line-color': 'rgba(255,255,255,0.08)', 'line-width': ['interpolate',['linear'],['zoom'],6,3,18,18], 'line-blur': 4 }
-        },
-        {
-          id: 'road-labels',
-          type: 'symbol',
-          source: 'mapbox-streets',
-          'source-layer': 'road',
-          layout: {
-            'text-field': ['get','name'],
-            'text-font': ['Open Sans Regular','Arial Unicode MS Regular'],
-            'text-size': 10,
-            'symbol-placement': 'line',
-            'text-max-angle': 30
-          },
-          paint: { 'text-color': 'rgba(255,255,255,0.35)', 'text-halo-color': 'rgba(0,0,0,0.8)', 'text-halo-width': 2 }
-        },
-        {
-          id: 'place-labels',
-          type: 'symbol',
-          source: 'mapbox-streets',
-          'source-layer': 'place_label',
-          layout: {
-            'text-field': ['get','name'],
-            'text-font': ['Open Sans Bold','Arial Unicode MS Bold'],
-            'text-size': ['interpolate',['linear'],['zoom'],8,10,14,14]
-          },
-          paint: { 'text-color': 'rgba(255,255,255,0.5)', 'text-halo-color': 'rgba(0,0,0,0.9)', 'text-halo-width': 2 }
+          paint: { 'line-color': '#ffffff', 'line-width': ['interpolate',['linear'],['zoom'],6,1.5,18,10] }
         }
       ]
     },
     center: [28.9784, 41.0082],
-    zoom: 14,
+    zoom: 15,
     pitch: 0,
     bearing: 0,
     antialias: true
@@ -671,20 +612,19 @@ function setupRouteLayers() {
     data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
   });
 
-  // Glow layer (wide, semi-transparent)
   map.addLayer({
     id: 'route-glow',
     type: 'line',
     source: 'route',
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': 'rgba(0,229,255,0.35)',
-      'line-width': 24,
-      'line-blur': 10
+      'line-color': '#00E5FF',
+      'line-width': 26,
+      'line-blur': 12,
+      'line-opacity': 0.4
     }
   });
 
-  // Main route line (7px width for better visibility on custom black style)
   map.addLayer({
     id: 'route-line',
     type: 'line',
@@ -692,12 +632,11 @@ function setupRouteLayers() {
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': '#00E5FF',
-      'line-width': 7,
+      'line-width': 8,
       'line-opacity': 1
     }
   });
 
-  // Inner highlight (bright core)
   map.addLayer({
     id: 'route-core',
     type: 'line',
@@ -705,8 +644,8 @@ function setupRouteLayers() {
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': '#ffffff',
-      'line-width': 2,
-      'line-opacity': 0.8
+      'line-width': 2.5,
+      'line-opacity': 0.9
     }
   });
 }
@@ -728,31 +667,30 @@ function startGPS() {
   }
   gpsWatchId = navigator.geolocation.watchPosition(onGPSUpdate, onGPSError, {
     enableHighAccuracy: true,
-    maximumAge: 1000,
-    timeout: 10000
+    maximumAge: 0,
+    timeout: 8000
   });
 }
 
 function onGPSUpdate(pos) {
   const { longitude, latitude, speed, heading } = pos.coords;
   const prevLng = userLng, prevLat = userLat;
+  
   userLng = longitude;
   userLat = latitude;
 
-  // Speed
-  const spd = speed != null ? Math.round(speed * 3.6) : 0;
+  const spd = speed != null && speed > 0.5 ? Math.round(speed * 3.6) : 0;
   document.getElementById('hud-speed').textContent = spd;
 
-  // GPS heading fallback
-  if (heading != null && !isNaN(heading)) userHeading = heading;
-  else if (prevLng != null) {
+  if (heading != null && !isNaN(heading) && speed > 1) userHeading = heading;
+  else if (prevLng != null && (prevLng !== userLng || prevLat !== userLat)) {
     userHeading = bearing([prevLng, prevLat], [userLng, userLat]);
   }
 
   updateVehicleMarker();
 
   if (followUser) {
-    map.easeTo({ center: [userLng, userLat], duration: 600 });
+    map.easeTo({ center: [userLng, userLat], duration: 400 });
   }
 
   updateStreetName();
@@ -765,29 +703,25 @@ function onGPSUpdate(pos) {
 }
 
 function onGPSError(err) {
-  showToast('⚠ GPS ERROR: ' + err.message.toUpperCase());
+  showToast('⚠ GPS SIGNALLING ERROR');
 }
 
 // ─── VEHICLE MARKER ───────────────────────────────────────────────────────────
-function createVehicleMarker() {
-  const el = document.createElement('div');
-  el.id = 'vehicle-el';
-  el.style.cssText = `
-    width: 0; height: 0;
-    border-left: 9px solid transparent;
-    border-right: 9px solid transparent;
-    border-bottom: 24px solid #00FF66;
-    filter: drop-shadow(0 0 6px #00FF66) drop-shadow(0 0 12px rgba(0,255,102,0.5));
-    transform-origin: center 80%;
-    transition: transform 0.3s ease;
-    pointer-events: none;
-  `;
-  return el;
-}
-
 function updateVehicleMarker() {
+  if (userLng === null || userLat === null) return;
+  
   if (!vehicleMarker) {
-    const el = createVehicleMarker();
+    const el = document.createElement('div');
+    el.id = 'vehicle-el';
+    el.style.cssText = `
+      width: 0; height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-bottom: 24px solid #00FF66;
+      filter: drop-shadow(0 0 6px #00FF66) drop-shadow(0 0 12px rgba(0,255,102,0.5));
+      transform-origin: center 75%;
+      pointer-events: none;
+    `;
     vehicleMarker = new mapboxgl.Marker({ element: el, anchor: 'center' })
       .setLngLat([userLng, userLat])
       .addTo(map);
@@ -801,7 +735,6 @@ function updateVehicleMarker() {
 // ─── DEVICE ORIENTATION ───────────────────────────────────────────────────────
 function setupDeviceOrientation() {
   if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    // iOS 13+
     document.body.addEventListener('click', function askOrient() {
       DeviceOrientationEvent.requestPermission().then(res => {
         if (res === 'granted') listenOrientation();
@@ -818,26 +751,6 @@ function listenOrientation() {
   window.addEventListener('deviceorientation', handleOrientation, true);
 }
 
-// ─── STREET NAME ─────────────────────────────────────────────────────────────
-function updateStreetName() {
-  if (!map || userLng === null) return;
-  try {
-    const pt = map.project([userLng, userLat]);
-    const bbox = [
-      [pt.x - 20, pt.y - 20],
-      [pt.x + 20, pt.y + 20]
-    ];
-    const features = map.queryRenderedFeatures(bbox, {
-      layers: ['roads-motorway', 'roads-primary', 'roads-secondary', 'roads-minor']
-    });
-    if (features && features.length > 0) {
-      const name = features[0].properties.name || features[0].properties.ref || null;
-      document.getElementById('hud-street-name').textContent =
-        name ? name.toUpperCase() : 'UNNAMED ROAD';
-    }
-  } catch (e) {}
-}
-
 function handleOrientation(e) {
   let alpha = e.alpha;
   if (e.webkitCompassHeading !== undefined) {
@@ -851,6 +764,24 @@ function handleOrientation(e) {
       vehicleMarker.getElement().style.transform = `rotate(${alpha}deg)`;
     }
   }
+}
+
+// ─── STREET NAME ─────────────────────────────────────────────────────────────
+function updateStreetName() {
+  if (!map || userLng === null) return;
+  try {
+    const pt = map.project([userLng, userLat]);
+    const bbox = [[pt.x - 24, pt.y - 24], [pt.x + 24, pt.y + 24]];
+    const features = map.queryRenderedFeatures(bbox, {
+      layers: ['roads-motorway', 'roads-primary', 'roads-secondary', 'roads-minor']
+    });
+    if (features && features.length > 0) {
+      const name = features[0].properties.name || features[0].properties.ref || null;
+      document.getElementById('hud-street-name').textContent = name ? name.toUpperCase() : 'ROUTE ROAD';
+    } else {
+      document.getElementById('hud-street-name').textContent = 'CRUISING SYSTEM';
+    }
+  } catch (e) {}
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
@@ -875,28 +806,21 @@ function setupSearch() {
 }
 
 async function fetchSuggestions(query) {
-  if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_ACCESS_TOKEN') return;
+  if (!MAPBOX_TOKEN) return;
   const sugg = document.getElementById('suggestions');
-
-  let searchQuery = query;
-  if (isPlusCode(query)) searchQuery = query; // Mapbox handles plus codes
-
   const prox = userLng !== null ? `&proximity=${userLng},${userLat}` : '';
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5${prox}&language=tr,en`;
+  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&autocomplete=true&limit=5${prox}&language=tr,en`;
 
   try {
     const res = await fetch(url);
     const data = await res.json();
-    if (!data.features || data.features.length === 0) {
-      sugg.style.display = 'none'; return;
-    }
+    if (!data.features || data.features.length === 0) { sugg.style.display = 'none'; return; }
     sugg.innerHTML = '';
     data.features.forEach(f => {
       const item = document.createElement('div');
       item.className = 'suggestion-item';
       const placeName = f.text || f.place_name.split(',')[0];
-      const placeAddr = f.place_name;
-      item.innerHTML = `<div class="place-name">${placeName.toUpperCase()}</div><div class="place-address">${placeAddr}</div>`;
+      item.innerHTML = `<div class="place-name">${placeName.toUpperCase()}</div><div class="place-address">${f.place_name}</div>`;
       item.addEventListener('click', () => {
         document.getElementById('search-input').value = f.place_name;
         sugg.style.display = 'none';
@@ -906,21 +830,18 @@ async function fetchSuggestions(query) {
     });
     sugg.style.display = 'block';
   } catch (e) {
-    showToast('⚠ SEARCH FAILED: CHECK CONNECTION');
+    showToast('⚠ CONNECTION UNSTABLE');
   }
 }
 
 // ─── DESTINATION ──────────────────────────────────────────────────────────────
 function selectDestination(coords, name) {
   destinationCoords = coords;
-
-  // Remove existing dest marker
   if (destMarker) destMarker.remove();
 
-  // Blue destination marker
   const el = document.createElement('div');
   el.style.cssText = `
-    width: 18px; height: 18px;
+    width: 16px; height: 16px;
     background: #00E5FF;
     border: 2px solid #fff;
     border-radius: 50%;
@@ -930,51 +851,38 @@ function selectDestination(coords, name) {
     .setLngLat(coords)
     .addTo(map);
 
-  map.flyTo({ center: coords, zoom: 14, duration: 1000 });
-
-  // Show start button
+  map.flyTo({ center: coords, zoom: 15, duration: 1000 });
   document.getElementById('start-btn').style.display = 'block';
-
-  // Fetch route
   fetchRoute(coords);
 }
 
-// ─── DIRECTIONS API ───────────────────────────────────────────────────────────
 async function fetchRoute(dest) {
-  if (userLng === null) { showToast('⚠ GPS SIGNAL REQUIRED'); return; }
-  if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_ACCESS_TOKEN') return;
-
+  if (userLng === null) { showToast('⚠ AWAITING GPS COORDINATES'); return; }
   const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${userLng},${userLat};${dest[0]},${dest[1]}?geometries=geojson&steps=false&overview=full&access_token=${MAPBOX_TOKEN}`;
 
   try {
     const res = await fetch(url);
     const data = await res.json();
-    if (!data.routes || data.routes.length === 0) {
-      showToast('⚠ NO ROUTE FOUND'); return;
-    }
+    if (!data.routes || data.routes.length === 0) { showToast('⚠ NO COMPATIBLE ROUTE'); return; }
     const route = data.routes[0];
     routeCoords = route.geometry.coordinates;
-    routeTotalDistance = route.distance / 1000; // km
-    routeTotalDuration = route.duration; // seconds
+    routeTotalDistance = route.distance / 1000;
+    routeTotalDuration = route.duration;
     setRouteData(routeCoords);
     updateDistanceETA();
   } catch (e) {
-    showToast('⚠ ROUTE FETCH FAILED');
+    showToast('⚠ DATA TRANSFER INCORRECT');
   }
 }
 
-// ─── CLIENT-SIDE DISTANCE/ETA ─────────────────────────────────────────────────
 function updateDistanceETA() {
   if (!routeCoords.length || userLng === null) return;
 
   const userPt = turf.point([userLng, userLat]);
   const line = turf.lineString(routeCoords);
-
-  // Find nearest point on route
   const snapped = turf.nearestPointOnLine(line, userPt, { units: 'kilometers' });
   const idx = snapped.properties.index;
 
-  // Remaining coords from snap point
   let remaining = routeCoords.slice(idx);
   if (remaining.length < 2) {
     document.getElementById('hud-dist').textContent = '0';
@@ -986,8 +894,6 @@ function updateDistanceETA() {
 
   const remainLine = turf.lineString(remaining);
   const remDist = turf.length(remainLine, { units: 'kilometers' });
-
-  // Speed-based ETA or proportional
   const fraction = remDist / routeTotalDistance;
   const remSecs = routeTotalDuration * fraction;
 
@@ -996,30 +902,25 @@ function updateDistanceETA() {
   document.getElementById('hud-dist-unit').textContent = dUnit;
   document.getElementById('hud-eta').textContent = formatETA(remSecs);
 
-  // Compass distance label
   document.getElementById('compass-dist-label').textContent =
     remDist < 1 ? `${Math.round(remDist * 1000)}M` : `${remDist.toFixed(1)}KM`;
 }
 
-// ─── REROUTE CHECK ────────────────────────────────────────────────────────────
 let lastReroute = 0;
 function checkReroute() {
   if (!routeCoords.length || userLng === null) return;
   const now = Date.now();
-  if (now - lastReroute < 5000) return; // throttle
+  if (now - lastReroute < 6000) return;
 
   const userPt = turf.point([userLng, userLat]);
   const line = turf.lineString(routeCoords);
   const snapped = turf.nearestPointOnLine(line, userPt, { units: 'meters' });
-  const distFromRoute = snapped.properties.dist;
-
-  if (distFromRoute > 0.07) { // 70m
+  if (snapped.properties.dist > 70) {
     lastReroute = now;
     fetchRoute(destinationCoords);
   }
 }
 
-// ─── COMPASS ─────────────────────────────────────────────────────────────────
 function updateCompass() {
   if (!destinationCoords || userLng === null) return;
   const bear = bearing([userLng, userLat], destinationCoords);
@@ -1028,32 +929,30 @@ function updateCompass() {
   document.getElementById('compass-arrow').style.transform = `rotate(${rel}deg)`;
 }
 
-// ─── NAVIGATION CONTROL ───────────────────────────────────────────────────────
+// ─── NAV CONTROLS ─────────────────────────────────────────────────────────────
 function setupButtons() {
   document.getElementById('start-btn').addEventListener('click', startNavigation);
   document.getElementById('stop-btn').addEventListener('click', stopNavigation);
   document.getElementById('center-btn').addEventListener('click', () => {
     followUser = true;
     document.getElementById('center-btn').style.display = 'none';
-    if (userLng !== null) map.easeTo({ center: [userLng, userLat], duration: 600 });
+    if (userLng !== null) map.easeTo({ center: [userLng, userLat], duration: 400 });
   });
 }
 
 function startNavigation() {
-  if (!routeCoords.length) { showToast('⚠ SET DESTINATION FIRST'); return; }
+  if (!routeCoords.length) return;
   isNavigating = true;
 
-  // Hide search, show controls
   document.getElementById('search-ui').classList.add('hidden');
   document.getElementById('start-btn').style.display = 'none';
   document.getElementById('stop-btn').style.display = 'block';
   document.getElementById('compass').style.display = 'flex';
 
-  // Fit route bounds
   const bounds = routeCoords.reduce((b, c) => b.extend(c), new mapboxgl.LngLatBounds(routeCoords[0], routeCoords[0]));
-  map.fitBounds(bounds, { padding: { top: 80, bottom: 160, left: 40, right: 40 }, duration: 1200 });
+  map.fitBounds(bounds, { padding: { top: 80, bottom: 160, left: 40, right: 40 }, duration: 1000 });
 
-  setTimeout(() => { followUser = true; }, 2000);
+  setTimeout(() => { followUser = true; }, 1500);
 }
 
 function stopNavigation() {
