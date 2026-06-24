@@ -125,6 +125,19 @@
     letter-spacing: 0.08em;
   }
   #search-input::placeholder { color: rgba(255,255,255,0.3); }
+  #search-clear {
+    display: none;
+    background: none;
+    border: none;
+    color: rgba(0,229,255,0.5);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  #search-clear:active { color: var(--neon); }
 
   #suggestions {
     background: rgba(0,0,0,0.98);
@@ -407,6 +420,7 @@
   <div class="search-box">
     <div class="search-icon">◈</div>
     <input type="text" id="search-input" placeholder="ENTER DESTINATION COORDINATES..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="search-clear" aria-label="Temizle">✕</button>
   </div>
   <div id="suggestions"></div>
 </div>
@@ -908,11 +922,38 @@ function updateStreetName() {
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
+function clearDestination() {
+  destinationCoords = null;
+  routeCoords = [];
+  routeTotalDistance = 0;
+  routeTotalDuration = 0;
+  if (destMarker) { destMarker.remove(); destMarker = null; }
+  setRouteData([]);
+  document.getElementById('start-btn').style.display = 'none';
+  document.getElementById('hud-dist').textContent = '--';
+  document.getElementById('hud-eta').textContent = '--:--';
+  document.getElementById('compass-dist-label').textContent = '--';
+}
+
 function setupSearch() {
   const input = document.getElementById('search-input');
   const sugg = document.getElementById('suggestions');
 
   // Handle paste events for Google Maps links (instant detection on paste)
+  const clearBtn = document.getElementById('search-clear');
+
+  function updateClearBtn() {
+    clearBtn.style.display = input.value.length > 0 ? 'block' : 'none';
+  }
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    document.getElementById('suggestions').style.display = 'none';
+    updateClearBtn();
+    clearDestination();
+    input.focus();
+  });
+
   input.addEventListener('paste', (e) => {
     const pasted = (e.clipboardData || window.clipboardData).getData('text');
     if (isGoogleMapsLink(pasted)) {
@@ -924,7 +965,9 @@ function setupSearch() {
 
   input.addEventListener('input', () => {
     clearTimeout(searchDebounce);
+    updateClearBtn();
     const q = input.value.trim();
+    if (q.length === 0) { clearDestination(); }
     if (q.length < 2) { sugg.style.display = 'none'; return; }
 
     // Check for Google Maps link input (typed or pasted)
@@ -1228,6 +1271,8 @@ function stopNavigation() {
   const input = document.getElementById('search-input');
   const sugg = document.getElementById('suggestions');
   if (input) input.value = '';
+  const clearBtnEl = document.getElementById('search-clear');
+  if (clearBtnEl) clearBtnEl.style.display = 'none';
   if (sugg) sugg.style.display = 'none';
 
   document.getElementById('search-ui').classList.remove('hidden');
