@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFSU2 Style Navigation</title>
+    <title>NFSU2 Style Navigation - Real GPS</title>
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
@@ -145,7 +145,7 @@
             background-repeat: no-repeat;
             background-position: center;
             filter: drop-shadow(0 0 12px #00ccff) drop-shadow(0 0 25px #00ccff);
-            transition: transform 0.1s linear;
+            transition: transform 0.2s ease-out;
         }
 
         /* Alt Bilgi Paneli */
@@ -199,7 +199,7 @@
             border-right: 12px solid transparent;
             border-bottom: 28px solid #00ffcc;
             filter: drop-shadow(0 0 8px #00ffcc) drop-shadow(0 0 15px #00ffcc);
-            cursor: pointer;
+            transition: transform 0.3s ease-out;
         }
 
         /* Gizleme Sınıfı */
@@ -238,7 +238,7 @@
             </div>
             <div class="hud-stat">
                 <span class="hud-label">SÜRE</span>
-                <span class="hud-value" id="hudTime">00:00</span>
+                <span class="hud-value" id="hudTime">--:--</span>
             </div>
         </div>
     </div>
@@ -248,32 +248,32 @@
         const MAPBOX_TOKEN = 'pk.eyJ1IjoiemFtcGFycmE3NiIsImEiOiJjbXFydTcxd3IwMWRjMnNzOTU1b2ZseXJ4In0.WtUhqD_3eCe2csSDe16asA';
         mapboxgl.accessToken = MAPBOX_TOKEN;
 
-        // Başlangıç Noktası (Balıkesir Merkez)
-        const startCoords = [27.867274, 39.643375]; 
+        // Varsayılan İlk Konum (Balıkesir) - Gerçek GPS gelene kadar geçici tutulur
+        let currentCoords = [27.867274, 39.643375]; 
         let activeDestination = null;
         let carMarker = null;
-        let animationFrameId = null;
+        let watchId = null;
+        let fullRouteCoordinates = [];
 
         // Haritayı Başlat (Koyu Gece Teması)
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/dark-v11',
-            center: startCoords,
-            zoom: 15,
-            pitch: 45, // NFSU2 sürüş perspektifi için harita eğimi
+            center: currentCoords,
+            zoom: 16,
+            pitch: 50,
             bearing: 0
         });
 
-        // Harita yüklendiğinde aracı koy
+        // Harita yüklendiğinde arayüzü ve katmanları hazırla
         map.on('load', () => {
             const el = document.createElement('div');
             el.className = 'car-marker';
             
             carMarker = new mapboxgl.Marker({ element: el })
-                .setLngLat(startCoords)
+                .setLngLat(currentCoords)
                 .addTo(map);
 
-            // Harita üzerinde neon rota katmanı şeması hazırlığı
             map.addSource('route', {
                 type: 'geojson',
                 data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
@@ -284,11 +284,7 @@
                 type: 'line',
                 source: 'route',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: {
-                    'line-color': '#00ccff',
-                    'line-width': 6,
-                    'line-blur': 2
-                }
+                paint: { 'line-color': '#00ccff', 'line-width': 6, 'line-blur': 2 }
             });
 
             map.addLayer({
@@ -296,12 +292,116 @@
                 type: 'line',
                 source: 'route',
                 layout: { 'line-join': 'round', 'line-cap': 'round' },
-                paint: {
-                    'line-color': '#00ffcc',
-                    'line-width': 2
-                }
+                paint: { 'line-color': '#00ffcc', 'line-width': 2 }
             });
+
+            // Gerçek zamanlı GPS takibini başlat
+            startGPSTracking();
         });
+
+        // Gerçek Zamanlı Konum İzleme Fonksiyonu
+        function startGPSTracking() {
+            if (!navigator.geolocation) {
+                alert("Cihazınız Geolocation API desteklemiyor.");
+                return;
+            }
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const newLng = position.coords.longitude;
+                    const newLat = position.coords.latitude;
+                    const speedMS = position.coords.speed; // m/s cinsinden hız gelir
+                    const heading = position.coords.heading; // gidiş yönü açısı
+
+                    const previousCoords = [...currentCoords];
+                    currentCoords = [newLng, newLat];
+
+                    // Hızı KM/H cinsine çevir
+                    let speedKmH = speedMS ? Math.round(speedMS * 3.6) : 0;
+                    document.getElementById('hudSpeed').innerHTML = `${speedKmH}<span class="hud-unit">KM/H</span>`;
+
+                    // Konumu Güncelle
+                    carMarker.setLngLat(currentCoords);
+
+                    // Araç rotasyonu (Cihaz pusulası yoksa iki koordinat arası açı hesaplanır)
+                    let currentBearing = heading;
+                    if (currentBearing === null || currentBearing === undefined) {
+                        const from = turf.point(previousCoords);
+                        const to = turf.point(currentCoords);
+                        currentBearing = turf.bearing(from, to);
+                    }
+                    
+                    const markerEl = carMarker.getElement();
+                    markerEl.style.transform = `rotate(${currentBearing}deg)`;
+
+                    // Eğer aktif bir rota varsa navigasyon verilerini güncelle
+                    if (activeDestination) {
+                        updateNavigationHUD(currentBearing);
+                    } else {
+                        // Rota yoksa kamerayı normal takip modunda tut
+                        map.easeTo({ center: currentCoords, bearing: currentBearing || 0, duration: 800 });
+                    }
+                },
+                (err) => {
+                    console.error("GPS Alınamadı:", err);
+                },
+                { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+            );
+        }
+
+        // Navigasyon Aktifken HUD Elementlerini ve Rotayı Güncelleyen Fonksiyon
+        async function updateNavigationHUD(currentBearing) {
+            // Anlık konumdan hedefe yeniden dinamik rota çek (Canlı Trafik/Sokak Güncellemesi)
+            const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${currentCoords[0]},${currentCoords[1]};${activeDestination[0]},${activeDestination[1]}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.routes && data.routes.length > 0) {
+                    const routeGeoJSON = data.routes[0].geometry;
+                    const duration = data.routes[0].duration; // saniye
+                    const distance = data.routes[0].distance; // metre
+
+                    // Kalan rota çizgisini güncelle
+                    map.getSource('route').setData({ type: 'Feature', properties: {}, geometry: routeGeoJSON });
+
+                    // Mesafeyi ve Süreyi Yazdır
+                    const distanceKm = (distance / 1000).toFixed(1);
+                    const mins = Math.ceil(duration / 60);
+                    const timeString = mins >= 60 ? `${Math.floor(mins/60)}SA ${mins%60}DK` : `${mins}DK`;
+
+                    document.getElementById('hudDistance').innerHTML = `${distanceKm}<span class="hud-unit">KM</span>`;
+                    document.getElementById('hudTime').textContent = timeString;
+
+                    // Üstteki Mavi Okun Rotasyonu (Anlık Konumdan Hedefe Olan Kuşuçuşu Açı)
+                    const pStart = turf.point(currentCoords);
+                    const pEnd = turf.point(activeDestination);
+                    const targetBearing = turf.bearing(pStart, pEnd);
+                    
+                    // Harita ve araç açısına göre okun sapma düzeltmesi
+                    const relativeArrowBearing = targetBearing - map.getBearing();
+                    document.getElementById('hudArrow').style.transform = `rotate(${relativeArrowBearing}deg)`;
+
+                    // Kamerayı Sürüş Açısıyla Takip Ettir
+                    map.easeTo({
+                        center: currentCoords,
+                        bearing: currentBearing || targetBearing,
+                        zoom: 17,
+                        duration: 800,
+                        pitch: 55
+                    });
+
+                    // Hedefe 15 metreden az kaldıysa bitir
+                    if (distance < 15) {
+                        alert("HEDEFE ULAŞTINIZ!");
+                        resetUI();
+                    }
+                }
+            } catch (err) {
+                console.error("Navigasyon güncelleme hatası:", err);
+            }
+        }
 
         // Adres Arama Metodu (Geocoding)
         const searchInput = document.getElementById('searchInput');
@@ -314,8 +414,7 @@
                 return;
             }
 
-            // Mapbox Geocoding API çağrısı
-            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&proximity=${startCoords[0]},${startCoords[1]}&limit=5&language=tr`;
+            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&proximity=${currentCoords[0]},${currentCoords[1]}&limit=5&language=tr`;
             
             try {
                 const response = await fetch(url);
@@ -340,7 +439,7 @@
 
         // Koordinat Kopyalama Fonksiyonu
         document.getElementById('copyBtn').addEventListener('click', () => {
-            const coordsText = `${startCoords[1].toFixed(6)},${startCoords[0].toFixed(6)}`;
+            const coordsText = `${currentCoords[1].toFixed(6)},${currentCoords[0].toFixed(6)}`;
             navigator.clipboard.writeText(coordsText).then(() => {
                 const origText = copyBtn.textContent;
                 copyBtn.textContent = 'KOPYALANDI!';
@@ -349,149 +448,35 @@
         });
 
         // Destinasyon Seçildiğinde Çalışacak Akış
-        async function selectDestination(feature) {
+        function selectDestination(feature) {
             activeDestination = feature.geometry.coordinates;
             
-            // Arama çubuğunu uçur, tam ekrana geç
+            // Arayüz elementlerini düzenle
             document.getElementById('searchWrapper').classList.add('hidden');
             resultsList.style.display = 'none';
+            document.getElementById('hudArrowContainer').style.display = 'flex';
+            document.getElementById('hudBottomPanel').style.display = 'flex';
 
-            // Arka planda Dijkstra / A* Heuristic hibrit çalışan Directions API'den rotayı çek
-            const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${startCoords[0]},${startCoords[1]};${activeDestination[0]},${activeDestination[1]}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
-
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.routes && data.routes.length > 0) {
-                    const routeGeoJSON = data.routes[0].geometry;
-                    const duration = data.routes[0].duration; // saniye
-                    const distance = data.routes[0].distance; // metre
-
-                    // Rota çizgisini güncelle
-                    map.getSource('route').setData({
-                        type: 'Feature',
-                        properties: {},
-                        geometry: routeGeoJSON
-                    });
-
-                    // HUD elementlerini aktif et
-                    document.getElementById('hudArrowContainer').style.display = 'flex';
-                    document.getElementById('hudBottomPanel').style.display = 'flex';
-
-                    // Simülasyonlu Rota Animasyonunu Başlat
-                    animateRoute(routeGeoJSON.coordinates, distance, duration);
-                }
-            } catch (err) {
-                console.error("Rota getirme hatası:", err);
-                resetUI();
-            }
+            // İlk tetiklemeyi yap
+            updateNavigationHUD(null);
         }
 
-        // Rota Üzerinde Akıcı İlerleme ve HUD Güncelleme Animasyonu
-        function animateRoute(coordinates, totalDistance, totalDuration) {
-            const line = turf.lineString(coordinates);
-            const chunkChunks = turf.length(line, {units: 'kilometers'});
-            
-            let distanceTravelled = 0;
-            // NFSU2 arcade hız hissi için adımları yüksek tutalım
-            const speedKmH = 140; 
-            const step = (speedKmH / 3600) * 0.05; // Kare başına ilerleme mesafesi
-
-            function frame() {
-                distanceTravelled += step;
-
-                if (distanceTravelled >= chunkChunks) {
-                    // Hedefe varış
-                    carMarker.setLngLat(coordinates[coordinates.length - 1]);
-                    document.getElementById('hudSpeed').innerHTML = `0<span class="hud-unit">KM/H</span>`;
-                    setTimeout(() => {
-                        alert("HEDEFE ULAŞILDI!");
-                        resetUI();
-                    }, 1000);
-                    return;
-                }
-
-                // Mevcut konum noktası hesaplama
-                const currentPoint = turf.along(line, distanceTravelled, {units: 'kilometers'});
-                const currentLngLat = currentPoint.geometry.coordinates;
-
-                // Bir sonraki küçük adım (Açı/Yön tespiti için)
-                const nextPoint = turf.along(line, distanceTravelled + 0.005, {units: 'kilometers'});
-                
-                // Aracın gidiş açısı (Bearing)
-                const bearing = turf.bearing(currentPoint, nextPoint);
-
-                // Destinasyona olan direkt kuşuçuşu açı (Üstteki Mavi Ok için)
-                const targetPoint = turf.point(activeDestination);
-                const absoluteTargetBearing = turf.bearing(currentPoint, targetPoint);
-                // Harita kamerasının açısına göre okun sapma açısını düzeltiyoruz
-                const relativeArrowBearing = absoluteTargetBearing - map.getBearing();
-
-                // Aracın konumunu ve rotasyonunu güncelle (Neon Yeşil Üçgen)
-                carMarker.setLngLat(currentLngLat);
-                const markerEl = carMarker.getElement();
-                markerEl.style.transform = `rotate(${bearing}deg)`;
-
-                // Üstteki Mavi Yön Okunu Döndür
-                document.getElementById('hudArrow').style.transform = `rotate(${relativeArrowBearing}deg)`;
-
-                // Harita kamerasını araca sabitle ve haritayı gidiş yönüne çevir
-                map.easeTo({
-                    center: currentLngLat,
-                    bearing: bearing,
-                    zoom: 16.5,
-                    duration: 0,
-                    pitch: 55
-                });
-
-                // Alt Panel HUD Bilgilerini Dinamik Azaltarak Güncelle
-                const remainingDistance = chunkChunks - distanceTravelled;
-                const remainingProgressRatio = remainingDistance / chunkChunks;
-                const remainingTimeSec = totalDuration * remainingProgressRatio;
-
-                // Süre Formatlama (Saat:Dakika veya Dakika:Saniye)
-                const mins = Math.floor(remainingTimeSec / 60);
-                const secs = Math.floor(remainingTimeSec % 60);
-                const timeString = mins > 0 ? `${mins}DK ${secs}SN` : `${secs}SN`;
-
-                // Dalgalı arcade hızı simüle et
-                const dynamicSpeed = Math.floor(speedKmH + (Math.sin(Date.now() / 200) * 8));
-
-                document.getElementById('hudSpeed').innerHTML = `${dynamicSpeed}<span class="hud-unit">KM/H</span>`;
-                document.getElementById('hudDistance').innerHTML = `${remainingDistance.toFixed(2)}<span class="hud-unit">KM</span>`;
-                document.getElementById('hudTime').textContent = timeString;
-
-                animationFrameId = requestAnimationFrame(frame);
-            }
-
-            animationFrameId = requestAnimationFrame(frame);
-        }
-
-        // Arayüzü İlk Haline Döndürme
+        // Arayüzü Sıfırlama
         function resetUI() {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            
+            activeDestination = null;
             document.getElementById('searchWrapper').classList.remove('hidden');
             document.getElementById('hudArrowContainer').style.display = 'none';
             document.getElementById('hudBottomPanel').style.display = 'none';
             searchInput.value = '';
 
-            // Haritayı sıfırla
-            map.getSource('route').setData({
-                type: 'Feature',
-                properties: {},
-                geometry: { type: 'LineString', coordinates: [] }
-            });
-            carMarker.setLngLat(startCoords);
-            const markerEl = carMarker.getElement();
-            markerEl.style.transform = `rotate(0deg)`;
-
-            map.flyTo({
-                center: startCoords,
-                zoom: 15,
+            map.getSource('route').setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } });
+            
+            map.easeTo({
+                center: currentCoords,
+                zoom: 16,
                 bearing: 0,
-                pitch: 45
+                pitch: 50,
+                duration: 1000
             });
         }
     </script>
