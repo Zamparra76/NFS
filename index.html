@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFSU2 Nav Systems - GERÇEK ZAMANLI GPS</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.1.0/mapbox-gl.css" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --amoled-black: #000000;
+            --dark-gray: #0d1117;
+            --neon-blue: #00f0ff;
+            --neon-green: #39ff14;
+            --panel-bg: rgba(0, 0, 0, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Orbitron', sans-serif;
+            user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--amoled-black);
+        }
+
+        /* --- LOADING SCREEN --- */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--amoled-black);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1s ease-out, transform 1s ease-out;
+        }
+
+        .loading-title {
+            color: var(--neon-blue);
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 5px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px var(--neon-blue);
+            text-align: center;
+        }
+
+        .progress-container {
+            width: 300px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #0082ff, var(--neon-blue));
+            box-shadow: 0 0 10px var(--neon-blue);
+            transition: width 0.1s linear;
+        }
+
+        /* --- MAP CONTAINER --- */
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* --- INTERFACE OVERLAYS --- */
+        .ui-element {
+            position: absolute;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        /* Search Panel */
+        #search-container {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 650px;
+            background: var(--panel-bg);
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            border-radius: 4px;
+            padding: 10px;
+            transition: all 0.5s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        #search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 240, 255, 0.5);
+            padding: 12px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 4px;
+            outline: none;
+            letter-spacing: 1px;
+        }
+
+        #search-input:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 0 15px;
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--neon-blue);
+            color: #000;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        #loc-btn {
+            border-color: var(--neon-green);
+            color: var(--neon-green);
+        }
+
+        #loc-btn:hover {
+            background: var(--neon-green);
+            color: #000;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        #cancel-btn {
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
+            color: rgba(255, 0, 0, 1);
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            display: none;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        #cancel-btn:hover {
+            background: rgba(255, 0, 0, 0.4);
+            border-color: rgba(255, 0, 0, 0.7);
+        }
+
+        /* Geocoding Results */
+        #results-list {
+            list-style: none;
+            max-height: 250px;
+            overflow-y: auto;
+            border-top: 1px solid rgba(0, 240, 255, 0.2);
+            display: none;
+        }
+
+        #results-list li {
+            padding: 12px;
+            color: #ccc;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        #results-list li:hover {
+            background: rgba(0, 240, 255, 0.15);
+            color: var(--neon-blue);
+            padding-left: 18px;
+        }
+
+        /* --- DASHBOARD PANEL --- */
+        #dashboard-panel {
+            bottom: -150px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+            background: var(--panel-bg);
+            border: 2px solid var(--neon-green);
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
+            border-radius: 8px 8px 0 0;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: bottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #dashboard-panel.active {
+            bottom: 0;
+        }
+
+        .dash-stat {
+            text-align: center;
+        }
+
+        .dash-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .dash-value {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--neon-green);
+            text-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+        }
+
+        .dash-unit {
+            font-size: 0.8rem;
+            color: #fff;
+            margin-left: 3px;
+        }
+
+        /* --- NOTIFICATION OVERLAY --- */
+        #notification-box {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(0, 0, 0, 0.95);
+            border: 3px solid var(--neon-green);
+            box-shadow: 0 0 30px var(--neon-green);
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            z-index: 100;
+        }
+
+        #notification-box.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #notification-box h2 {
+            color: var(--neon-green);
+            font-size: 2rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+
+        #notification-box p {
+            color: #fff;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        #finish-btn {
+            background: rgba(57, 255, 20, 0.2);
+            border: 2px solid rgba(57, 255, 20, 0.5);
+            color: rgba(57, 255, 20, 1);
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            text-shadow: 0 0 5px rgba(57, 255, 20, 0.5);
+        }
+
+        #finish-btn:hover {
+            background: rgba(57, 255, 20, 0.4);
+            border-color: rgba(57, 255, 20, 0.7);
+        }
+
+        /* --- CUSTOM VECHICLE MARKER --- */
+        .vehicle-marker {
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 28px solid var(--neon-green);
+            filter: drop-shadow(0 0 8px var(--neon-green));
+            cursor: pointer;
+            transition: transform 0.2s ease-out; /* Daha yumuşak dönüş için */
+        }
+
+        /* Custom Scrollbar for results */
+        #results-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        #results-list::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+        #results-list::-webkit-scrollbar-thumb {
+            background: var(--neon-blue);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-screen">
+        <div class="loading-title">NFSU NAV SYSTEMS</div>
+        <div class="progress-container">
+            <div class="progress-bar" id="load-progress"></div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="search-container" class="ui-element">
+        <div class="search-row">
+            <input type="text" id="search-input" placeholder="HEDEF ARA VEYA KOORDİNAT YAPIŞTIR..." autocomplete="off">
+            <button class="icon-btn" id="loc-btn" title="Kamerayı Konumuma Odakla">
+                LOC
+            </button>
+            <button class="icon-btn" id="paste-btn" title="Koordinattan Navigasyon Başlat">
+                PASTE
+            </button>
+        </div>
+        <button id="cancel-btn">NAVİGASYONU İPTAL ET (CANCEL)</button>
+        <ul id="results-list"></ul>
+    </div>
+
+    <div id="dashboard-panel" class="ui-element">
+        <div class="dash-stat">
+            <div class="dash-label">HIZ</div>
+            <div class="dash-value" id="dash-speed">0<span class="dash-unit">KM/H</span></div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-label">KALAN MESAFE</div>
+            <div class="dash-value" id="dash-dist">0.0<span class="dash-unit">KM</span></div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-label">SÜRE</div>
+            <div class="dash-value" id="dash-time">00:00</div>
+        </div>
+    </div>
+
+    <div id="notification-box">
+        <h2>HEDEFE VARILDI!</h2>
+        <p>Rotanızı başarıyla tamamladınız.</p>
+        <button id="finish-btn">BİTİR (FINISH)</button>
+    </div>
+
+    <script>
+        // ==========================================
+        // TOKEN GİZLİLİĞİ VE KONFİGÜRASYON
+        // ==========================================
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoiemFtcGFycmE3NiIsImEiOiJjbXFydTcxd3IwMWRjMnNzOTU1b2ZseXJ4In0.WtUhqD_3eCe2csSDe16asA';
+        mapboxgl.accessToken = MAPBOX_TOKEN;
+
+        // Global State Değişkenleri
+        let startCoords = [27.867274, 39.643375]; // Varsayılan: Balıkesir
+        let currentCoords = [...startCoords];
+        let map;
+        let vehicleMarker;
+        let destinationCoords = null;
+        let isNavigating = false;
+        let watchId = null;
+        let currentHeading = 0;
+
+        // --- Sahte Yükleme Ekranı ---
+        const progressBar = document.getElementById('load-progress');
+        const loadingScreen = document.getElementById('loading-screen');
+        let progress = 0;
+        const interval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 100) progress = 100;
+            progressBar.style.width = `${progress}%`;
+            if (progress === 100) {
+                clearInterval(interval);
+                setTimeout(() => {
+                    loadingScreen.style.opacity = '0';
+                    loadingScreen.style.transform = 'scale(1.1)';
+                    setTimeout(() => loadingScreen.style.display = 'none', 1000);
+                }, 400);
+            }
+        }, 100);
+
+        // --- Mapbox Harita Girişi ---
+        map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/navigation-night-v1',
+            center: startCoords,
+            zoom: 15,
+            pitch: 50,
+            bearing: 0,
+            attributionControl: false
+        });
+
+        const el = document.createElement('div');
+        el.className = 'vehicle-marker';
+
+        map.on('load', () => {
+            vehicleMarker = new mapboxgl.Marker({
+                element: el,
+                rotationAlignment: 'map',
+                pitchAlignment: 'map'
+            })
+            .setLngLat(startCoords)
+            .addTo(map);
+
+            map.addSource('route', {
+                type: 'geojson',
+                data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } }
+            });
+
+            map.addLayer({
+                id: 'route-line',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#00f0ff', 'line-width': 6, 'line-blur': 1 }
+            });
+
+            map.addLayer({
+                id: 'route-glow',
+                type: 'line',
+                source: 'route',
+                layout: { 'line-join': 'round', 'line-cap': 'round' },
+                paint: { 'line-color': '#00f0ff', 'line-width': 14, 'line-blur': 8, 'line-opacity': 0.6 }
+            });
+
+            // Sayfa açıldığında sürekli GPS takibini başlat
+            startRealTimeTracking();
+        });
+
+        // ==========================================
+        // GERÇEK ZAMANLI GPS TAKİBİ (GEOLOCATION API)
+        // ==========================================
+        function startRealTimeTracking() {
+            if (navigator.geolocation) {
+                // watchPosition, konum her değiştiğinde tetiklenir
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const newCoords = [position.coords.longitude, position.coords.latitude];
+                        
+                        // Hız (m/s'den km/h'ye çevirme). Eğer cihaz hız vermiyorsa 0 yap.
+                        let speedKmh = 0;
+                        if (position.coords.speed !== null && !isNaN(position.coords.speed)) {
+                            speedKmh = Math.round(position.coords.speed * 3.6);
+                        }
+                        
+                        // Yön (Cihazın pusulasından veya hareketinden alınan gerçek yön)
+                        if (position.coords.heading !== null && !isNaN(position.coords.heading)) {
+                            currentHeading = position.coords.heading;
+                        } else if (getDistance(currentCoords, newCoords) > 0.001) {
+                            // Cihaz heading vermiyorsa ve hareket ediliyorsa, iki nokta arasından açıyı hesapla
+                            currentHeading = calculateBearing(currentCoords, newCoords);
+                        }
+
+                        currentCoords = newCoords;
+
+                        // Araç ikonunu yeni konuma taşı ve döndür
+                        vehicleMarker.setLngLat(currentCoords);
+                        el.style.transform = `rotate(${currentHeading}deg)`;
+
+                        // Kamerayı aracı takip edecek şekilde yumuşakça kaydır
+                        map.easeTo({
+                            center: currentCoords,
+                            bearing: currentHeading,
+                            pitch: 55,
+                            duration: 1000, // 1 saniyelik akıcı geçiş
+                            easing: (t) => t
+                        });
+
+                        // Hız Göstergesini Güncelle
+                        document.getElementById('dash-speed').innerHTML = `${speedKmh}<span class="dash-unit">KM/H</span>`;
+
+                        // Eğer navigasyon rotasındaysak, kalan mesafe ve süreyi güncelle
+                        if (isNavigating && destinationCoords) {
+                            updateNavigationStats(speedKmh);
+                        }
+                    },
+                    (error) => {
+                        console.warn("GPS hatası veya izni yok:", error.message);
+                    },
+                    {
+                        enableHighAccuracy: true, // GPS çipini zorla
+                        maximumAge: 0, // Önbellekteki konumu kullanma
+                        timeout: 5000
+                    }
+                );
+            } else {
+                alert("Tarayıcınız veya cihazınız GPS desteklemiyor.");
+            }
+        }
+
+        // LOC Butonu: Kamerayı tekrar araca manuel olarak odaklar
+        document.getElementById('loc-btn').addEventListener('click', () => {
+            map.flyTo({
+                center: currentCoords,
+                bearing: currentHeading,
+                zoom: 16,
+                pitch: 55,
+                duration: 1200
+            });
+        });
+
+        // ==========================================
+        // ADRES ARAMA VE ROTA ÇİZİMİ
+        // ==========================================
+        const searchInput = document.getElementById('search-input');
+        const resultsList = document.getElementById('results-list');
+        const cancelBtn = document.getElementById('cancel-btn');
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (query.length < 3) {
+                resultsList.style.display = 'none';
+                return;
+            }
+
+            fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&proximity=${currentCoords[0]},${currentCoords[1]}&language=tr`)
+                .then(res => res.json())
+                .then(data => {
+                    resultsList.innerHTML = '';
+                    if (data.features && data.features.length > 0) {
+                        resultsList.style.display = 'block';
+                        data.features.forEach(feature => {
+                            const li = document.createElement('li');
+                            li.textContent = feature.place_name;
+                            li.addEventListener('click', () => {
+                                destinationCoords = feature.geometry.coordinates;
+                                startNavigation(destinationCoords);
+                            });
+                            resultsList.appendChild(li);
+                        });
+                    } else {
+                        resultsList.style.display = 'none';
+                    }
+                }).catch(err => console.error("Geocoding Hatası:", err));
+        });
+
+        document.getElementById('paste-btn').addEventListener('click', () => {
+            navigator.clipboard.readText().then(text => {
+                processCoordinateInput(text);
+            }).catch(() => {
+                processCoordinateInput(searchInput.value);
+            });
+        });
+
+        cancelBtn.addEventListener('click', cancelNavigation);
+
+        function processCoordinateInput(text) {
+            const coordRegex = /([-+]?\d{1,2}\.\d+)\s*,\s*([-+]?\d{1,3}\.\d+)/;
+            const match = text.match(coordRegex);
+            
+            if (match) {
+                const lat = parseFloat(match[1]);
+                const lng = parseFloat(match[2]);
+                destinationCoords = [lng, lat];
+                searchInput.value = `${lat}, ${lng}`;
+                startNavigation(destinationCoords);
+            } else {
+                alert("Geçerli bir koordinat formatı bulunamadı! Örn: 39.643375, 27.867274");
+            }
+        }
+
+        function startNavigation(targetCoords) {
+            // Sadece API'den rotayı çek ve haritaya çiz (Animasyon YOK)
+            const origin = `${currentCoords[0]},${currentCoords[1]}`;
+            const destination = `${targetCoords[0]},${targetCoords[1]}`;
+
+            fetch(`https://api.mapbox.com/directions/v5/mapbox/driving/${origin};${destination}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.routes || data.routes.length === 0) {
+                        alert("Rota bulunamadı.");
+                        resetUI();
+                        return;
+                    }
+
+                    const route = data.routes[0];
+                    
+                    // Rota çizgisini ekrana bas
+                    map.getSource('route').setData({
+                        type: 'Feature',
+                        properties: {},
+                        geometry: route.geometry
+                    });
+
+                    // Arayüzü navigasyon moduna geçir
+                    document.getElementById('search-container').style.display = 'block';
+                    resultsList.style.display = 'none';
+                    cancelBtn.style.display = 'block';
+                    document.getElementById('dashboard-panel').classList.add('active');
+                    
+                    isNavigating = true;
+                    updateNavigationStats(0); // İlk istatistikleri bas
+                })
+                .catch(err => {
+                    console.error("Directions Hatası:", err);
+                    resetUI();
+                });
+        }
+
+        // ==========================================
+        // DİNAMİK İSTATİSTİKLER VE BİTİŞ KONTROLÜ
+        // ==========================================
+        function updateNavigationStats(currentSpeedKmh) {
+            const remainingDistKm = getDistance(currentCoords, destinationCoords);
+            
+            // Eğer hedefe 50 metreden daha yakınsak navigasyonu bitir
+            if (remainingDistKm < 0.05) {
+                endNavigation();
+                return;
+            }
+
+            document.getElementById('dash-dist').innerHTML = `${remainingDistKm.toFixed(1)}<span class="dash-unit">KM</span>`;
+
+            // Kalan süreyi hesapla (Eğer hız 10km'nin altındaysa varsayılan 30km/h hızla gideceğini varsayarak tahmini süre ver)
+            let avgSpeed = currentSpeedKmh > 10 ? currentSpeedKmh : 30; 
+            let remainingTimeSec = (remainingDistKm / avgSpeed) * 3600;
+            
+            document.getElementById('dash-time').textContent = formatTime(remainingTimeSec);
+        }
+
+        function endNavigation() {
+            isNavigating = false;
+            document.getElementById('dashboard-panel').classList.remove('active');
+            
+            const notif = document.getElementById('notification-box');
+            notif.classList.add('active');
+
+            const finishHandler = () => {
+                notif.classList.remove('active');
+                resetUI();
+                document.getElementById('finish-btn').removeEventListener('click', finishHandler);
+            };
+            document.getElementById('finish-btn').addEventListener('click', finishHandler);
+        }
+
+        function cancelNavigation() {
+            resetUI();
+        }
+
+        function resetUI() {
+            isNavigating = false;
+            destinationCoords = null;
+            
+            document.getElementById('search-container').style.display = 'block';
+            document.getElementById('dashboard-panel').classList.remove('active');
+            cancelBtn.style.display = 'none';
+            searchInput.value = '';
+            
+            // Rota çizgisini temizle
+            map.getSource('route').setData({
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'LineString', coordinates: [] }
+            });
+
+            // Kamerayı tekrar mevcut pozisyona odakla
+            map.flyTo({
+                center: currentCoords,
+                zoom: 15,
+                pitch: 50,
+                bearing: currentHeading,
+                duration: 1500
+            });
+        }
+
+        // ==========================================
+        // MATEMATİKSEL UTILS VE COĞRAFİ METRİKLER
+        // ==========================================
+        function calculateBearing(p1, p2) {
+            const lon1 = p1[0] * Math.PI / 180;
+            const lat1 = p1[1] * Math.PI / 180;
+            const lon2 = p2[0] * Math.PI / 180;
+            const lat2 = p2[1] * Math.PI / 180;
+
+            const dLon = lon2 - lon1;
+            const y = Math.sin(dLon) * Math.cos(lat2);
+            const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+            
+            let brng = Math.atan2(y, x) * 180 / Math.PI;
+            return (brng + 360) % 360;
+        }
+
+        function getDistance(p1, p2) {
+            const R = 6371;
+            const dLat = (p2[1] - p1[1]) * Math.PI / 180;
+            const dLon = (p2[0] - p1[0]) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(p1[1] * Math.PI / 180) * Math.cos(p2[1] * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            
+            if (h > 0) {
+                return `${h}SA ${m}DK`;
+            }
+            return `${m} DK`;
+        }
+    </script>
+</body>
+</html>
