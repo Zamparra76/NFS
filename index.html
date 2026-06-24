@@ -576,7 +576,7 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const MAPBOX_TOKEN = 'YOUR_MAPBOX_ACCESS_TOKEN';
+    const MAPBOX_TOKEN = 'pk.eyJ1IjoiemFtcGFycmE3NiIsImEiOiJjbXFydTcxd3IwMWRjMnNzOTU1b2ZseXJ4In0.WtUhqD_3eCe2csSDe16asA';
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -1466,7 +1466,7 @@
       setSearchMode(true);
       setHUDFromState();
 
-      if (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('pk.eyJ1IjoiemFtcGFycmE3NiIsImEiOiJjbXFydTcxd3IwMWRjMnNzOTU1b2ZseXJ4In0.WtUhqD_3eCe2csSDe16asA')) {
+      if (!MAPBOX_TOKEN || MAPBOX_TOKEN.includes('YOUR_MAPBOX_ACCESS_TOKEN')) {
         showToast('PASTE YOUR MAPBOX TOKEN');
       }
 
