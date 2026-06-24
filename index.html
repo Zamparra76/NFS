@@ -461,6 +461,7 @@ let map;
 let userLng = null, userLat = null;
 let userHeading = 0;
 let deviceHeading = null;
+let smoothedHeading = null;
 let gpsWatchId = null;
 let vehicleMarker = null;
 let destMarker = null;
@@ -473,6 +474,14 @@ let isNavigating = false;
 let searchDebounce = null;
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
+function smoothAngle(current, target, factor = 0.15) {
+  if (current === null) return target;
+  let diff = target - current;
+  while (diff <= -180) diff += 360;
+  while (diff > 180) diff -= 360;
+  return (current + diff * factor + 360) % 360;
+}
+
 function showToast(msg, dur = 3500) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -775,8 +784,10 @@ function updateVehicleMarker() {
   } else {
     vehicleMarker.setLngLat([userLng, userLat]);
   }
+  
   const hdg = deviceHeading !== null ? deviceHeading : userHeading;
-  vehicleMarker.setRotation(hdg);
+  smoothedHeading = smoothAngle(smoothedHeading, hdg, 0.15);
+  vehicleMarker.setRotation(smoothedHeading);
 }
 
 // ─── DEVICE ORIENTATION ───────────────────────────────────────────────────────
@@ -807,8 +818,11 @@ function handleOrientation(e) {
   }
   if (alpha !== null) {
     deviceHeading = alpha;
+    
+    smoothedHeading = smoothAngle(smoothedHeading, alpha, 0.15);
+    
     if (vehicleMarker) {
-      vehicleMarker.setRotation(alpha);
+      vehicleMarker.setRotation(smoothedHeading);
     }
     if (isNavigating && destinationCoords) {
       updateCompass();
@@ -1014,7 +1028,8 @@ function checkReroute() {
 function updateCompass() {
   if (!destinationCoords || userLng === null) return;
   const bear = bearing([userLng, userLat], destinationCoords);
-  const hdg = deviceHeading !== null ? deviceHeading : userHeading;
+  
+  const hdg = smoothedHeading !== null ? smoothedHeading : (deviceHeading !== null ? deviceHeading : userHeading);
   
   // Calculate relative angle between target bearing and vehicle's heading
   const rel = (bear - hdg + 360) % 360;
@@ -1080,3 +1095,5 @@ function stopNavigation() {
 </script>
 </body>
 </html>
+
+```
