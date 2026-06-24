@@ -540,8 +540,14 @@ function decodePlusCode(str) {
 }
 
 function parseCoordinates(str) {
-  const s = str.trim();
-  // "41.0082, 28.9784" or "41.0082 28.9784" (lat, lng)
+  // Normalize: trim, collapse whitespace, replace unicode spaces/commas, remove trailing junk
+  const s = str.trim()
+    .replace(/[\u00A0\u202F\u2009\u2002\u2003]/g, ' ') // unicode spaces
+    .replace(/[\u060C\uFF0C]/g, ',')                       // arabic/fullwidth comma
+    .replace(/\s*,\s*/g, ',')                               // spaces around comma
+    .replace(/[^\d.,\s\-]/g, '');                          // strip non-numeric chars
+
+  // Match: "41.0082,28.9784" or "41.0082 28.9784" or "41.0082, 28.9784"
   const match = s.match(/^(-?\d{1,3}\.\d+)[,\s]+(-?\d{1,3}\.\d+)$/);
   if (match) {
     const a = parseFloat(match[1]);
@@ -970,6 +976,27 @@ function setupSearch() {
     if (input.value.trim().length >= 2) sugg.style.display = 'block';
   });
 
+  // Mobile: trigger search on keyboard "Go/Done/Enter" press
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.keyCode === 13) {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+      // Try coordinate parse first — auto-select without needing to tap suggestion
+      const coordResult = parseCoordinates(q);
+      if (coordResult) {
+        input.value = coordResult[1].toFixed(5) + ', ' + coordResult[0].toFixed(5);
+        sugg.style.display = 'none';
+        selectDestination(coordResult, 'COORDINATE TARGET');
+        input.blur();
+        return;
+      }
+      // Select first suggestion if available
+      const first = sugg.querySelector('.suggestion-item');
+      if (first) { first.click(); input.blur(); }
+    }
+  });
+
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#search-ui')) sugg.style.display = 'none';
   });
@@ -1185,10 +1212,28 @@ function stopNavigation() {
   isNavigating = false;
   followUser = true;
 
+  // Clear destination state
+  destinationCoords = null;
+  routeCoords = [];
+  routeTotalDistance = 0;
+  routeTotalDuration = 0;
+
+  // Remove destination marker
+  if (destMarker) { destMarker.remove(); destMarker = null; }
+
+  // Clear route line on map
+  setRouteData([]);
+
+  // Clear search input and suggestions
+  const input = document.getElementById('search-input');
+  const sugg = document.getElementById('suggestions');
+  if (input) input.value = '';
+  if (sugg) sugg.style.display = 'none';
+
   document.getElementById('search-ui').classList.remove('hidden');
   document.getElementById('stop-btn').style.display = 'none';
   document.getElementById('compass').style.display = 'none';
-  document.getElementById('start-btn').style.display = destinationCoords ? 'block' : 'none';
+  document.getElementById('start-btn').style.display = 'none';
   document.getElementById('center-btn').style.display = 'none';
 
   // Reset camera to flat top-down view
