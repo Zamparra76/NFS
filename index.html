@@ -552,6 +552,59 @@ function parseCoordinates(str) {
   return null;
 }
 
+// ─── GOOGLE MAPS LINK PARSER ──────────────────────────────────────────────────
+
+// Returns true if the string looks like a Google Maps URL
+function isGoogleMapsLink(str) {
+  return /https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|www\.google\.com\/maps|google\.com\/maps)\S*/i.test(str.trim());
+}
+
+// Extracts [lng, lat] from a fully-expanded Google Maps URL string
+function extractCoordsFromGoogleUrl(url) {
+  // Pattern 1: /@lat,lng,zoom  e.g. /@41.0082,28.9784,15z
+  const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return [lng, lat];
+  }
+  // Pattern 2: !3d<lat>!4d<lng>  (place pin encoding)
+  const d3match = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+  if (d3match) {
+    const lat = parseFloat(d3match[1]);
+    const lng = parseFloat(d3match[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return [lng, lat];
+  }
+  // Pattern 3: ?q=lat,lng or &q=lat,lng
+  const qMatch = url.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return [lng, lat];
+  }
+  return null;
+}
+
+// Tries to resolve a Google Maps link (including short goo.gl links) to coordinates.
+// Returns [lng, lat] or null.
+async function resolveGoogleMapsLink(rawUrl) {
+  const url = rawUrl.trim();
+
+  // If URL already contains coordinate data, extract directly without fetch
+  const direct = extractCoordsFromGoogleUrl(url);
+  if (direct) return direct;
+
+  // For short links (goo.gl) or links without coords, resolve via a CORS-safe proxy.
+  // We use the Mapbox Geocoding API as a fallback: ask Mapbox to resolve the place
+  // from the URL by fetching the final redirect URL via a no-cors trick won't work,
+  // so instead we show a "no coordinates in link" message and let the user paste the
+  // full Google Maps URL (which always contains coordinates after clicking "share").
+  //
+  // TECHNICAL NOTE: Browsers block cross-origin redirects from goo.gl, so we cannot
+  // follow the short link server-side. We parse whatever coordinates are embedded.
+  return null;
+}
+
 // ─── SPLASH ───
 setTimeout(() => {
   const splash = document.getElementById('splash');
@@ -853,10 +906,26 @@ function setupSearch() {
   const input = document.getElementById('search-input');
   const sugg = document.getElementById('suggestions');
 
+  // Handle paste events for Google Maps links (instant detection on paste)
+  input.addEventListener('paste', (e) => {
+    const pasted = (e.clipboardData || window.clipboardData).getData('text');
+    if (isGoogleMapsLink(pasted)) {
+      e.preventDefault();
+      input.value = pasted;
+      handleGoogleMapsInput(pasted);
+    }
+  });
+
   input.addEventListener('input', () => {
     clearTimeout(searchDebounce);
     const q = input.value.trim();
     if (q.length < 2) { sugg.style.display = 'none'; return; }
+
+    // Check for Google Maps link input (typed or pasted)
+    if (isGoogleMapsLink(q)) {
+      handleGoogleMapsInput(q);
+      return;
+    }
 
     // Check for direct coordinate input
     const coordResult = parseCoordinates(q);
@@ -904,6 +973,43 @@ function setupSearch() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#search-ui')) sugg.style.display = 'none';
   });
+}
+
+async function handleGoogleMapsInput(url) {
+  const sugg = document.getElementById('suggestions');
+  const input = document.getElementById('search-input');
+
+  // Show a "resolving" state in suggestions
+  sugg.innerHTML = '';
+  const loadItem = document.createElement('div');
+  loadItem.className = 'suggestion-item';
+  loadItem.innerHTML = `<div class="place-name">🔗 LINK ÇÖZÜMLENIYOR...</div><div class="place-address">${url.length > 60 ? url.slice(0, 60) + '…' : url}</div>`;
+  sugg.appendChild(loadItem);
+  sugg.style.display = 'block';
+
+  const coords = await resolveGoogleMapsLink(url);
+
+  sugg.innerHTML = '';
+
+  if (coords) {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.innerHTML = `<div class="place-name">📍 GOOGLE MAPS HEDEFİ</div><div class="place-address">${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}</div>`;
+    item.addEventListener('click', () => {
+      input.value = `${coords[1].toFixed(5)}, ${coords[0].toFixed(5)}`;
+      sugg.style.display = 'none';
+      selectDestination(coords, 'GOOGLE MAPS TARGET');
+    });
+    sugg.appendChild(item);
+    sugg.style.display = 'block';
+  } else {
+    // Could not extract coords (short link without embedded coords)
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.innerHTML = `<div class="place-name">⚠ KOORDİNAT BULUNAMADI</div><div class="place-address">Google Haritalar'da "Paylaş → Link kopyala" ile tam linki kullanın</div>`;
+    sugg.appendChild(item);
+    sugg.style.display = 'block';
+  }
 }
 
 async function fetchSuggestions(query) {
