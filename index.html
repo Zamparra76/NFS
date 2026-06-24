@@ -388,7 +388,6 @@
 </head>
 <body>
 
-<!-- SPLASH -->
 <div id="splash">
   <div class="splash-logo">
     NFSU NAV SYSTEMS
@@ -400,13 +399,10 @@
   <div class="splash-status">INITIALIZING GPS SYSTEMS...</div>
 </div>
 
-<!-- MAP -->
 <div id="map"></div>
 
-<!-- SCAN LINES -->
 <div id="scanlines"></div>
 
-<!-- SEARCH UI -->
 <div id="search-ui">
   <div class="search-box">
     <div class="search-icon">◈</div>
@@ -415,7 +411,6 @@
   <div id="suggestions"></div>
 </div>
 
-<!-- COMPASS -->
 <div id="compass">
   <div class="compass-label">BEARING</div>
   <div class="compass-ring">
@@ -424,16 +419,12 @@
   <div class="compass-dist" id="compass-dist-label">--</div>
 </div>
 
-<!-- STOP BUTTON -->
 <button id="stop-btn">■ ABORT</button>
 
-<!-- CENTER BUTTON -->
 <button id="center-btn">⊕ CENTER</button>
 
-<!-- START BUTTON -->
 <button id="start-btn">▶ START NAVIGATION</button>
 
-<!-- HUD -->
 <div id="hud" style="position:fixed;">
   <div class="hud-street">
     <div class="hud-street-icon">⬡</div>
@@ -458,7 +449,6 @@
   </div>
 </div>
 
-<!-- TOAST -->
 <div id="toast"></div>
 
 <script>
@@ -546,6 +536,7 @@ function initApp() {
           url: 'mapbox://mapbox.mapbox-streets-v8'
         }
       },
+      glyphs: "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
       layers: [
         {
           id: 'background',
@@ -628,7 +619,7 @@ function initApp() {
           'source-layer': 'road',
           layout: {
             'text-field': ['get','name'],
-            'text-font': ['DIN Pro Regular','Arial Unicode MS Regular'],
+            'text-font': ['Open Sans Regular','Arial Unicode MS Regular'],
             'text-size': 10,
             'symbol-placement': 'line',
             'text-max-angle': 30
@@ -642,7 +633,7 @@ function initApp() {
           'source-layer': 'place_label',
           layout: {
             'text-field': ['get','name'],
-            'text-font': ['DIN Pro Bold','Arial Unicode MS Bold'],
+            'text-font': ['Open Sans Bold','Arial Unicode MS Bold'],
             'text-size': ['interpolate',['linear'],['zoom'],8,10,14,14]
           },
           paint: { 'text-color': 'rgba(255,255,255,0.5)', 'text-halo-color': 'rgba(0,0,0,0.9)', 'text-halo-width': 2 }
@@ -687,13 +678,13 @@ function setupRouteLayers() {
     source: 'route',
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
-      'line-color': 'rgba(0,229,255,0.25)',
-      'line-width': 16,
-      'line-blur': 8
+      'line-color': 'rgba(0,229,255,0.35)',
+      'line-width': 24,
+      'line-blur': 10
     }
   });
 
-  // Main route line
+  // Main route line (7px width for better visibility on custom black style)
   map.addLayer({
     id: 'route-line',
     type: 'line',
@@ -701,7 +692,7 @@ function setupRouteLayers() {
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': '#00E5FF',
-      'line-width': 4,
+      'line-width': 7,
       'line-opacity': 1
     }
   });
@@ -714,8 +705,8 @@ function setupRouteLayers() {
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: {
       'line-color': '#ffffff',
-      'line-width': 1.5,
-      'line-opacity': 0.7
+      'line-width': 2,
+      'line-opacity': 0.8
     }
   });
 }
@@ -827,21 +818,6 @@ function listenOrientation() {
   window.addEventListener('deviceorientation', handleOrientation, true);
 }
 
-function handleOrientation(e) {
-  let alpha = e.alpha;
-  if (e.webkitCompassHeading !== undefined) {
-    alpha = e.webkitCompassHeading;
-  } else if (alpha !== null) {
-    alpha = (360 - alpha) % 360;
-  }
-  if (alpha !== null) {
-    deviceHeading = alpha;
-    if (vehicleMarker) {
-      vehicleMarker.getElement().style.transform = `rotate(${alpha}deg)`;
-    }
-  }
-}
-
 // ─── STREET NAME ─────────────────────────────────────────────────────────────
 function updateStreetName() {
   if (!map || userLng === null) return;
@@ -860,6 +836,21 @@ function updateStreetName() {
         name ? name.toUpperCase() : 'UNNAMED ROAD';
     }
   } catch (e) {}
+}
+
+function handleOrientation(e) {
+  let alpha = e.alpha;
+  if (e.webkitCompassHeading !== undefined) {
+    alpha = e.webkitCompassHeading;
+  } else if (alpha !== null) {
+    alpha = (360 - alpha) % 360;
+  }
+  if (alpha !== null) {
+    deviceHeading = alpha;
+    if (vehicleMarker) {
+      vehicleMarker.getElement().style.transform = `rotate(${alpha}deg)`;
+    }
+  }
 }
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
